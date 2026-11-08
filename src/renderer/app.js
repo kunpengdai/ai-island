@@ -104,6 +104,18 @@ function renderTasks() {
 }
 function setSwitch(id, value) { $(id).classList.toggle('on', Boolean(value)); $(id).setAttribute('aria-checked', String(Boolean(value))); }
 function render() {
+  const activity = state.activity || { state: 'idle', running: 0, description: '暂无任务' };
+  const dockHidden = Boolean(state.dock?.hidden);
+  document.body.classList.toggle('dock-hidden', dockHidden);
+  document.body.dataset.dockEdge = state.dock?.edge || '';
+  document.body.dataset.activity = activity.state;
+  $('island').hidden = dockHidden;
+  $('island').dataset.activity = activity.state;
+  $('island').dataset.running = String(activity.running > 0);
+  $('edge-tab').hidden = !dockHidden;
+  $('edge-tab').title = `${activity.description} · 鼠标移入显示任务面板`;
+  $('edge-tab').setAttribute('aria-label', $('edge-tab').title);
+  $('edge-mark').textContent = ({ waiting: '!', completed: '✓', error: '!', unknown: '?' })[activity.state] || '';
   $('island').classList.toggle('open', state.expanded);
   $('expanded-content').hidden = !state.expanded;
   $('summary').setAttribute('aria-expanded', String(state.expanded));
@@ -211,6 +223,10 @@ $('cursor-cloud-form').onsubmit = async event => {
   finally { button.disabled = false; button.textContent = '连接云端'; }
 };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') action('expand', false); });
+$('edge-tab').addEventListener('mouseenter', () => action('dock-hover'));
+$('edge-tab').onclick = () => action('dock-hover');
+document.addEventListener('focusin', event => { if (event.target.matches('input, textarea, select')) action('dock-editing', true); });
+document.addEventListener('focusout', event => { if (event.target.matches('input, textarea, select')) action('dock-editing', false); });
 api.onState(next => { state = next; render(); });
 api.onChime(playChime);
 action('state').then(next => { if (next) { state = next; render(); } });

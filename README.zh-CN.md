@@ -12,7 +12,7 @@
 
 从 [GitHub Releases](https://github.com/kunpengdai/ai-island/releases/latest) 下载 Windows x64 便携包，完整解压后运行 `AI Island.exe`。运行时需要保留同目录的文件。便携版不需要安装 Node.js；目前仅支持 Windows。
 
-本地构建的输出为 `release/AI-Island-0.1.4-win-x64/AI Island.exe`，分发包为 `release/AI-Island-0.1.4-win-x64.zip`。从旧版 Agent Island 升级时保留原有接入、设置和历史。
+本地构建的输出为 `release/AI-Island-0.1.5-win-x64/AI Island.exe`，分发包为 `release/AI-Island-0.1.5-win-x64.zip`。从旧版 Agent Island 升级时保留原有接入、设置和历史。
 
 开发环境需要 Node.js 22 或更新版本：
 
@@ -24,6 +24,10 @@ npm start
 点击胶囊展开 / 收起；拖动左侧图标可移动窗口。`Ctrl+Shift+Space` 切换展开状态，`Esc` 收起。右下角系统托盘菜单可以恢复窗口、重置位置或退出。设置中可切换显示器、音量、置顶、系统通知和开机启动。开机启动仅供打包版本使用，移动便携版后需重新启用。
 
 小窗口始终显示 **运行中 / 待交互 / 已完成** 三组数量。运行中不包含待交互，完成数量保留到你清除历史或该会话开始下一轮任务。展开后可单独筛选“待交互”。
+
+**贴边收起（0.1.5+）**：把窗口拖到屏幕左、右、上或下边缘，会收成一小条状态指示。鼠标移入会展开任务面板，移开片刻后自动收回；把展开的窗口拖离边缘即可恢复悬浮。会记住贴靠边缘和位置，重新启动后恢复，也支持多显示器工作区域。
+
+小条在运行时显示蓝色呼吸光，待交互时显示橙色，**所有任务均已完成**时显示绿色，空闲为灰色；失败或中断为红色，状态待确认为灰紫色。有待交互任务时橙色优先，未知或失败任务不会被误报成全部完成。正常窗口运行时也会显示更强的边框呼吸光、图标起伏和明亮活动条；系统启用减少动态效果时关闭这些动画。
 
 无法确认当前状态的任务归入独立的“状态未知”分类，并显示数量；“全部”视图也会在列表底部单独分区。它们不计入运行中、待交互或已完成。收到新的可靠任务事件后，会自动恢复到对应分类。
 
@@ -79,9 +83,11 @@ Cursor 的“本机已就绪”表示本机进程与钩子已就绪，提交新�
 npm test       # 状态机、失联、重复事件、配置合并/备份、实际 PowerShell 钩子
 npm run check  # JavaScript 语法检查
 npm run smoke  # Electron 原生窗口、界面流程、声音 IPC、截图
+node scripts/smoke-dock.cjs  # 贴边、悬停、状态颜色、动效和位置恢复
 npm run pack   # Windows 应用目录
 npm run dist   # Windows 便携 ZIP
 node scripts/smoke.cjs --packaged  # 验证便携版
+node scripts/smoke-dock.cjs --packaged  # 验证便携版贴边功能
 ```
 
 Electron 冒烟测试使用独立临时目录，不修改真实工具配置，不查询用户任务。截图输出到 `artifacts/`。首次安装依赖需要下载 Electron。构建脚本直接打包 Electron 运行时，不需要额外的打包服务。

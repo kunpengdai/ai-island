@@ -12,7 +12,7 @@ AI Island sits at the top of your screen as a compact pill. Expand it to view ta
 
 Download the Windows x64 portable ZIP from [GitHub Releases](https://github.com/kunpengdai/ai-island/releases/latest), extract the entire archive, and run `AI Island.exe`. Keep the other files alongside the executable. The portable app does not require Node.js. Windows is currently the only supported platform; the app interface is in Simplified Chinese.
 
-Local builds produce `release/AI-Island-0.1.4-win-x64/AI Island.exe` and `release/AI-Island-0.1.4-win-x64.zip`. Upgrading from Agent Island preserves existing integrations, settings and history.
+Local builds produce `release/AI-Island-0.1.5-win-x64/AI Island.exe` and `release/AI-Island-0.1.5-win-x64.zip`. Upgrading from Agent Island preserves existing integrations, settings and history.
 
 For development, install Node.js 22 or newer:
 
@@ -24,6 +24,12 @@ npm start
 Click the pill to expand or collapse it. Drag the icon on the left to move the window. `Ctrl+Shift+Space` toggles the panel, and `Esc` collapses it. The system tray menu lets you restore the window, reset its position or quit. Settings include display selection, volume, always-on-top behavior, system notifications and launch at login. Launch at login is available in packaged builds; enable it again after moving the portable app.
 
 ## Task overview
+
+### Edge docking (0.1.5+)
+
+Drag the window to the left, right, top or bottom edge of your screen to tuck it into a small colored tab. Hover over the tab to open the task panel; move away for a moment to hide it again. Drag the open panel away from the edge to return to a floating window. The chosen edge and position are restored at startup, and docking follows each display's usable work area.
+
+The tab pulses blue while tasks run and orange when a task needs your input. Green means **all tracked tasks are completed**; gray means idle, red indicates a failed or interrupted task, and muted purple indicates an uncertain state. Waiting takes priority when other tasks are still running. Unknown or failed tasks never produce an all-completed green indicator. Running tasks also have a stronger breathing border, animated brand bars and brighter activity waves in the full window. Reduced-motion preferences disable these animations.
 
 The compact window always shows **running**, **waiting for input** and **completed** counts. Running excludes tasks waiting for input. Completed tasks remain counted until you clear history or the session starts another turn. The expanded panel has a dedicated waiting-for-input filter.
 
@@ -89,9 +95,11 @@ AI Island has no telemetry and does not upload local tasks. Orca integration inv
 npm test       # State handling, disconnects, duplicate events, config merging/backups, PowerShell hooks
 npm run check  # JavaScript syntax checks
 npm run smoke  # Native Electron window, UI flows, audio IPC and screenshots
+node scripts/smoke-dock.cjs  # Edge docking, hover, colors, motion and saved position
 npm run pack   # Windows application directory
 npm run dist   # Windows portable ZIP
 node scripts/smoke.cjs --packaged  # Validate the portable build
+node scripts/smoke-dock.cjs --packaged  # Validate docking in the portable build
 ```
 
 Electron smoke tests use an isolated temporary directory. They do not modify your tool configurations or query your real tasks. Screenshots are written to `artifacts/`. The first dependency installation downloads Electron. Builds package the Electron runtime directly and do not require an external packaging service.

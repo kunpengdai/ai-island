@@ -6,6 +6,7 @@ const integrations = require('./integrations.cjs');
 const { CodexDesktopMonitor } = require('./codex-desktop.cjs');
 const { CursorCloudMonitor } = require('./cursor-cloud.cjs');
 const { CursorLocalMonitor } = require('./cursor-local.cjs');
+const { EDGES, SIZES: sizes, contains, detectDock, windowBounds, activitySummary } = require('./window-state.cjs');
 
 const smoke = process.argv.includes('--smoke');
 if (smoke && process.env.AGENT_ISLAND_TEST_DATA) app.setPath('userData', process.env.AGENT_ISLAND_TEST_DATA);
@@ -36,9 +37,11 @@ else {
   const desktopMonitor = new CodexDesktopMonitor(smoke ? { root: path.join(runtime, 'codex-sessions'), discoverEvery: 250 } : {});
   let cloudMonitor = new CursorCloudMonitor(), cloudBusy = false, firstCloud = true, cloudRetryAt = 0;
   const cursorLocalMonitor = new CursorLocalMonitor();
-  const sizes = { small: { width: 450, height: 76 }, large: { width: 508, height: 650 } };
+  settings.dockEdge = EDGES.has(settings.dockEdge) ? settings.dockEdge : null;
+  let dockHidden = Boolean(settings.dockEdge), dragging = false, applyingBounds = false, dockEditing = false, leaveAt = 0, moveTimer;
+  let testCursor = { x: -100000, y: -100000 };
 
-  function snapshot() { return { tasks: store.snapshot(), settings, sources, expanded, packaged: app.isPackaged, platform: process.platform, shortcut: shortcutRegistered, version: app.getVersion() }; }
+  function snapshot() { const tasks = store.snapshot(); return { tasks, activity: activitySummary(tasks), dock: { edge: settings.dockEdge, hidden: dockHidden }, settings, sources, expanded, packaged: app.isPackaged, platform: process.platform, shortcut: shortcutRegistered, version: app.getVersion() }; }
   function send() { if (win && !win.isDestroyed()) win.webContents.send('island:state', snapshot()); }
   function scheduleState() {
     clearTimeout(emitTimer); emitTimer = setTimeout(send, 60);
@@ -59,19 +62,57 @@ else {
     if (settings.notifications && Notification.isSupported()) new Notification({ title: `${task.tool === 'claude' ? 'Claude Code' : task.tool} 已完成`, body: task.title, silent: true }).show();
   });
   function display() { return screen.getAllDisplays().find(d => d.id === settings.displayId) || screen.getPrimaryDisplay(); }
-  function position(centerX) {
-    const d = display(); const { x, y, width, height } = d.workArea;
-    const size = expanded ? sizes.large : sizes.small;
-    const cx = centerX ?? (settings.centerX || x + width / 2);
-    win.setBounds({ x: Math.round(Math.max(x, Math.min(cx - size.width / 2, x + width - size.width))), y: y + 8, width: size.width, height: Math.min(size.height, height - 16) });
+  function position() {
+    applyingBounds = true;
+    try {
+      const area = display().workArea;
+      const requested = windowBounds(area, { expanded, edge: settings.dockEdge, hidden: dockHidden, offset: settings.dockOffset, centerX: settings.centerX, top: settings.windowTop });
+      win.setBounds(requested);
+      // Windows can round a requested size by one DIP at fractional scale factors.
+      const actual = win.getBounds();
+      const x = Math.max(area.x, Math.min(actual.x, area.x + area.width - actual.width));
+      const y = Math.max(area.y, Math.min(actual.y, area.y + area.height - actual.height));
+      if (x !== actual.x || y !== actual.y) win.setBounds({ ...requested, x, y });
+      win.setAlwaysOnTop(settings.alwaysOnTop, process.platform === 'win32' ? 'normal' : 'floating');
+    }
+    finally { applyingBounds = false; }
+  }
+  function hideDock() {
+    if (!settings.dockEdge || dragging || dockEditing) return;
+    dockHidden = true; expanded = false; leaveAt = 0; position(); send();
+  }
+  function openDock() {
+    if (!settings.dockEdge || !dockHidden || dragging) return;
+    dockHidden = false; expanded = true; leaveAt = 0; position(); win.showInactive(); send();
+  }
+  function checkDock() {
+    if (!settings.dockEdge || dragging || !win || win.isDestroyed() || !win.isVisible()) return;
+    const point = smoke ? testCursor : screen.getCursorScreenPoint();
+    const tab = windowBounds(display().workArea, { edge: settings.dockEdge, hidden: true, offset: settings.dockOffset });
+    const inside = contains(win.getBounds(), point) || contains(tab, point);
+    if (inside) { leaveAt = 0; if (dockHidden) openDock(); }
+    else if (!dockHidden && !dockEditing) {
+      if (!leaveAt) leaveAt = Date.now();
+      else if (Date.now() - leaveAt >= 650) hideDock();
+    }
+  }
+  function finishMove() {
+    if (!dragging || !win || win.isDestroyed()) return;
+    dragging = false;
+    const bounds = win.getBounds(), target = screen.getDisplayMatching(bounds), dock = detectDock(bounds, target.workArea);
+    settings.displayId = target.id; settings.centerX = bounds.x + bounds.width / 2; settings.windowTop = bounds.y;
+    settings.dockEdge = dock.edge; settings.dockOffset = dock.offset;
+    dockHidden = Boolean(dock.edge); if (dockHidden) expanded = false;
+    position(); saveSettings(); send();
   }
   function setExpanded(value) {
-    const bounds = win.getBounds();
+    if (settings.dockEdge) {
+      if (!value) { dockEditing = false; hideDock(); }
+      else { openDock(); expanded = true; dockHidden = false; leaveAt = Date.now() + 2000; position(); send(); }
+      return;
+    }
     expanded = Boolean(value);
-    const target = screen.getDisplayMatching(bounds);
-    settings.displayId = target.id;
-    settings.centerX = bounds.x + bounds.width / 2;
-    position(settings.centerX); send();
+    position(); send();
   }
   function reveal(open = true) { win.show(); if (open) setExpanded(true); win.focus(); }
   function saveSettings() { integrations.atomicJson(settingsFile, settings); }
@@ -222,13 +263,15 @@ else {
       sources.cursor.cloudConfigured = false; sources.cursor.cloudStatus = 'not-configured'; sources.cursor.cloudDetail = '';
       store.markSourceUnknown('cursor-cloud', '已断开云端连接'); pollProcesses(); send();
     },
-    'reset-position': () => { settings.centerX = null; settings.displayId = screen.getPrimaryDisplay().id; position(); saveSettings(); },
-    'next-display': () => { const all = screen.getAllDisplays(); const index = all.findIndex(d => d.id === display().id); settings.displayId = all[(index + 1) % all.length].id; settings.centerX = null; position(); saveSettings(); },
+    'dock-hover': () => openDock(),
+    'dock-editing': value => { dockEditing = value === true; },
+    'reset-position': () => { settings.centerX = null; settings.windowTop = null; settings.dockEdge = null; dockHidden = false; settings.displayId = screen.getPrimaryDisplay().id; position(); saveSettings(); send(); },
+    'next-display': () => { const all = screen.getAllDisplays(); const index = all.findIndex(d => d.id === display().id); settings.displayId = all[(index + 1) % all.length].id; settings.centerX = null; settings.windowTop = null; settings.dockEdge = null; dockHidden = false; position(); saveSettings(); send(); },
     settings: value => {
       if (!value || typeof value !== 'object') throw new Error('无效设置');
       for (const key of ['sound', 'notifications', 'alwaysOnTop', 'launchAtLogin']) if (typeof value[key] === 'boolean') settings[key] = value[key];
       if (Number.isFinite(value.volume)) settings.volume = Math.max(0, Math.min(100, value.volume));
-      win.setAlwaysOnTop(settings.alwaysOnTop, 'floating');
+      win.setAlwaysOnTop(settings.alwaysOnTop, process.platform === 'win32' ? 'normal' : 'floating');
       if (app.isPackaged && !smoke) app.setLoginItemSettings({ openAtLogin: settings.launchAtLogin, path: process.env.PORTABLE_EXECUTABLE_FILE || process.execPath });
       saveSettings(); send(); return snapshot();
     },
@@ -249,6 +292,7 @@ else {
   if (smoke) actions['test-orca-tasks'] = payload => {
     const parsed = orcaTasks(payload); store.reconcileOrca(parsed.tasks, { complete: !parsed.truncated });
   };
+  if (smoke) actions['test-dock-cursor'] = point => { testCursor = point; checkDock(); return snapshot(); };
   app.whenReady().then(() => {
     fs.mkdirSync(eventDir, { recursive: true });
     refreshInstalled();
@@ -264,15 +308,21 @@ else {
       webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' }
     });
     position();
-    win.setAlwaysOnTop(settings.alwaysOnTop, 'floating');
+    win.setAlwaysOnTop(settings.alwaysOnTop, process.platform === 'win32' ? 'normal' : 'floating');
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', event => event.preventDefault());
     win.on('close', event => { if (!quitting) { event.preventDefault(); win.hide(); } });
-    win.on('moved', () => {
-      const b = win.getBounds(); const d = screen.getDisplayMatching(b);
-      settings.displayId = d.id; settings.centerX = b.x + b.width / 2;
+    win.on('will-move', () => {
+      if (applyingBounds) return;
+      dragging = true; dockHidden = false; leaveAt = 0; settings.dockEdge = null;
+      clearTimeout(moveTimer);
     });
+    win.on('moved', () => {
+      if (!dragging || applyingBounds) return;
+      clearTimeout(moveTimer); moveTimer = setTimeout(finishMove, 120);
+    });
+    win.on('blur', () => { dockEditing = false; });
     win.once('ready-to-show', () => { if (!smoke) win.showInactive(); send(); });
     win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
     ipcMain.handle('island:action', async (event, action, value) => {
@@ -290,8 +340,10 @@ else {
     ]));
     tray.on('click', () => reveal());
     shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+Space', () => win.isVisible() && expanded ? setExpanded(false) : reveal());
-    screen.on('display-removed', () => position()); screen.on('display-metrics-changed', () => position());
-    powerMonitor.on('resume', () => { pollOrca(); pollEvents(); pollDesktop(); cloudRetryAt = 0; pollCloud(); });
+    const displayChanged = () => { settings.displayId = display().id; position(); send(); };
+    screen.on('display-removed', displayChanged); screen.on('display-metrics-changed', displayChanged);
+    powerMonitor.on('resume', () => { position(); pollOrca(); pollEvents(); pollDesktop(); cloudRetryAt = 0; pollCloud(); });
+    timers.push(setInterval(checkDock, 100));
     pollEvents(); timers.push(setInterval(pollEvents, 700));
     pollDesktop(); timers.push(setInterval(pollDesktop, 1000));
     if (!smoke) {
@@ -302,7 +354,7 @@ else {
   app.on('second-instance', () => win && reveal());
   app.on('window-all-closed', () => {});
   app.on('before-quit', () => {
-    quitting = true; timers.forEach(t => clearTimeout(t)); clearTimeout(saveTimer); clearTimeout(emitTimer);
+    quitting = true; timers.forEach(t => clearTimeout(t)); clearTimeout(saveTimer); clearTimeout(emitTimer); clearTimeout(moveTimer);
     globalShortcut.unregisterAll();
     try { saveSettings(); integrations.atomicJson(historyFile, store.serialize()); } catch {}
     tray?.destroy();

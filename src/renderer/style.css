@@ -69,3 +69,27 @@ footer { border-top: 1px solid var(--line); min-height: 42px; padding: 0 18px 0 
 .cloud-actions { display: flex; justify-content: space-between; gap: 10px; }.cloud-connection small { display: block; color: var(--faint); font-size: 8px; margin-top: 7px; }
 @keyframes equalize { from { transform: scaleY(.4); } to { transform: scaleY(1); } }@keyframes pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { *, *::after, *::before { animation: none !important; transition: none !important; } }
+
+/* Activity is visible in both the full island and its edge tab. */
+.island[data-running="true"] { border-color: #79c6ffb3; animation: island-running-glow 1.3s ease-in-out infinite alternate; }
+.island[data-running="true"] .brand-mark span { background: #91d4ff; animation: brand-running 900ms ease-in-out infinite alternate; transform-origin: center; }
+.island[data-running="true"] .brand-mark span:nth-child(2) { animation-delay: -.3s; }
+.island[data-running="true"] .brand-mark span:nth-child(3) { animation-delay: -.6s; }
+.island[data-running="true"] .mini-activity.busy i { background: #a2dfff; width: 3px; box-shadow: 0 0 6px #52baffaa; animation-duration: .55s; }
+.island[data-activity="waiting"] { border-color: #efbd67c9; box-shadow: 0 0 15px #efb45740, inset 0 0 0 1px #efb45724; }
+.island[data-activity="completed"] { border-color: #8bd4b075; }
+@keyframes island-running-glow { from { box-shadow: 0 0 7px #53b8ff30, inset 0 0 12px #53b8ff08; } to { box-shadow: 0 0 20px #53b8ff80, inset 0 0 18px #53b8ff18; } }
+@keyframes brand-running { from { transform: rotate(17deg) scaleY(.72); opacity: .65; } to { transform: rotate(17deg) scaleY(1.25); opacity: 1; } }
+body.dock-hidden { padding: 0; }
+.edge-tab { --edge-color: #777c8b; display: flex; align-items: center; justify-content: center; width: 100%; height: 100vh; padding: 0; border: 1px solid #ffffff55; background: var(--edge-color); color: #10202b; font: 800 11px/1 'Segoe UI', sans-serif; box-shadow: inset 0 0 5px #ffffff44; cursor: pointer; -webkit-app-region: no-drag; }
+body[data-dock-edge="left"] .edge-tab { border-radius: 0 8px 8px 0; border-left: 0; }
+body[data-dock-edge="right"] .edge-tab { border-radius: 8px 0 0 8px; border-right: 0; }
+body[data-dock-edge="top"] .edge-tab { border-radius: 0 0 8px 8px; border-top: 0; }
+body[data-dock-edge="bottom"] .edge-tab { border-radius: 8px 8px 0 0; border-bottom: 0; }
+body[data-activity="running"] .edge-tab { --edge-color: #55baff; animation: edge-running .8s ease-in-out infinite alternate; }
+body[data-activity="waiting"] .edge-tab { --edge-color: #ffc466; animation: edge-running 1.2s ease-in-out infinite alternate; }
+body[data-activity="completed"] .edge-tab { --edge-color: #7fe0a7; }
+body[data-activity="error"] .edge-tab { --edge-color: #f18b87; }
+body[data-activity="unknown"] .edge-tab { --edge-color: #aaa2be; }
+@keyframes edge-running { from { filter: brightness(.85); box-shadow: inset 0 0 4px #ffffff22; } to { filter: brightness(1.35); box-shadow: inset 0 0 8px #ffffffbb; } }
+@media (prefers-reduced-motion: reduce) { .island, .island .brand-mark span, .mini-activity i, .edge-tab { animation: none !important; } }
