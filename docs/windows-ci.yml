@@ -1,0 +1,31 @@
+name: Windows checks and portable build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run dist
+      - run: node scripts/smoke.cjs --packaged
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AI-Island-windows-x64
+          path: release/*.zip
+          if-no-files-found: error

@@ -1,0 +1,25 @@
+{
+  "name": "ai-island",
+  "productName": "AI Island",
+  "version": "0.1.4",
+  "description": "A floating Windows task monitor for Codex, Claude Code, Cursor and Orca",
+  "private": true,
+  "main": "src/main.cjs",
+  "author": "AI Island contributors",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/kunpengdai/ai-island.git" },
+  "homepage": "https://github.com/kunpengdai/ai-island#readme",
+  "bugs": { "url": "https://github.com/kunpengdai/ai-island/issues" },
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "check": "node scripts/check.cjs",
+    "pack": "node scripts/package.cjs",
+    "dist": "node scripts/package.cjs --zip",
+    "smoke": "node scripts/smoke.cjs"
+  },
+  "devDependencies": {
+    "electron": "40.10.2",
+    "playwright": "1.65.0"
+  }
+}

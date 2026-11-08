@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>AI Island</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="island" class="island" aria-label="AI 任务监控">
+    <header class="island-head">
+      <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+      <button class="compact-summary" id="summary" aria-label="展开任务面板" aria-expanded="false">
+        <span class="wordmark">AI Island<span class="brand-dot">.</span></span>
+        <span class="header-divider"></span>
+        <span class="summary-counts" id="summary-text"><span class="summary-metric working">运行中 <b id="summary-running">0</b></span><span class="summary-metric waiting">待交互 <b id="summary-waiting">0</b></span><span class="summary-metric completed">已完成 <b id="summary-completed">0</b></span></span>
+        <span class="mini-activity" id="activity" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      </button>
+      <button class="icon-button" id="mute" aria-label="关闭提示音" title="提示音"></button>
+      <button class="icon-button" id="expand" aria-label="展开" title="展开任务面板"></button>
+    </header>
+
+    <section class="expanded-content" id="expanded-content" hidden>
+      <nav class="nav-bar" aria-label="面板页面">
+        <div class="page-tabs"><button class="page-tab selected" data-page="tasks">工作台</button><button class="page-tab" data-page="settings">接入与设置</button></div>
+        <span class="local-indicator"><i></i> 本机运行</span>
+      </nav>
+
+      <section class="page" id="tasks-page">
+        <div class="overview">
+          <div><div class="eyebrow">YOUR AGENTS, IN SYNC</div><h1 id="greeting">让专注，不被打断。</h1><p id="overview-caption">任务交给 AI，进度留在这里。</p></div>
+          <div class="orbit" aria-hidden="true"><div class="orbit-line"></div><span class="orbit-core"></span><i class="orbit-dot one"></i><i class="orbit-dot two"></i><i class="orbit-dot three"></i></div>
+        </div>
+        <div class="tool-strip" id="tool-strip" aria-label="工具连接状态"></div>
+        <div class="section-heading"><span>任务动态 <span id="task-count" class="count">0</span></span><button id="clear-history" class="text-button" title="清除非运行状态的任务">清除历史</button></div>
+        <div class="filter-row" role="group" aria-label="任务筛选"><button class="filter selected" data-filter="all">全部</button><button class="filter" data-filter="active">进行中 <span id="active-count">0</span></button><button class="filter" data-filter="waiting">待交互 <span id="waiting-count">0</span></button><button class="filter" data-filter="completed">已完成 <span id="completed-count">0</span></button><button class="filter" data-filter="unknown">状态未知 <span id="unknown-count">0</span></button></div>
+        <div class="task-list" id="task-list" aria-live="polite"></div>
+        <div class="empty-state" id="empty-state"><div class="empty-glyph" aria-hidden="true">⌘</div><h2>下一次灵感，从这里开始</h2><p>连接你的编程工具，任务状态会自动汇集到这里。</p><div class="empty-actions"><button class="primary-button" id="connect-tools">连接工具 <span>↗</span></button><button class="secondary-button" id="demo">体验演示</button></div><span class="empty-note">Orca 内的本机任务会自动同步</span></div>
+      </section>
+
+      <section class="page settings-page" id="settings-page" hidden>
+        <div class="settings-intro"><h1>把工具连接起来。</h1><p>接收真实任务事件，完成时轻轻提醒。</p></div>
+        <div id="integration-list" class="integration-list"></div>
+        <p class="integration-note">Codex 桌面版自动读取本机会话状态。CLI 钩子接入时自动备份配置，重启工具后生效；Codex CLI 需在 <code>/hooks</code> 中信任新增钩子。</p>
+        <div class="cloud-connection">
+          <div class="cloud-heading"><strong>Cursor Cloud / Background Agent</strong><span id="cursor-cloud-status">未连接云端</span></div>
+          <p>云端任务通过 Cursor API 同步。本机钩子只接收本地 Agent 的事件。</p>
+          <form class="cloud-input-row" id="cursor-cloud-form"><input id="cursor-cloud-key" type="password" autocomplete="off" spellcheck="false" aria-label="Cursor 云端 API Key" placeholder="输入 Cursor API Key"><button id="cursor-cloud-connect" type="submit" class="primary-button">连接云端</button></form>
+          <div class="cloud-actions"><button id="cursor-cloud-dashboard" class="text-button">打开 Cursor 控制台获取 API Key ↗</button><button id="cursor-cloud-disconnect" class="text-button" hidden>断开云端</button></div>
+          <small>验证后使用 Windows 加密保存；同步已有任务的状态。</small>
+        </div>
+        <div class="settings-group">
+          <div class="setting-row"><div><strong>完成提示音</strong><small>任务完成时播放柔和的双音提示</small></div><button id="sound-toggle" class="switch" role="switch" aria-label="完成提示音"></button></div>
+          <div class="volume-row"><span id="volume-label">音量 55%</span><input id="volume" aria-label="提示音音量" type="range" min="0" max="100" value="55"><button id="test-sound" class="text-button">试听</button></div>
+          <div class="setting-row"><div><strong>Windows 通知</strong><small>完成后同时发送系统通知</small></div><button id="notification-toggle" class="switch" role="switch" aria-label="Windows 通知"></button></div>
+          <div class="setting-row"><div><strong>始终置顶</strong><small>悬浮窗保持在其他窗口上方</small></div><button id="top-toggle" class="switch" role="switch" aria-label="始终置顶"></button></div>
+          <div class="setting-row"><div><strong>开机启动</strong><small id="startup-note">登录 Windows 时自动打开</small></div><button id="startup-toggle" class="switch" role="switch" aria-label="开机启动"></button></div>
+        </div>
+        <div class="settings-actions"><button id="refresh-sources" class="secondary-button">立即同步</button><button id="next-display" class="secondary-button">切换屏幕</button><button id="reset-position" class="secondary-button">回到顶部</button><button id="settings-demo" class="text-button">运行演示</button></div>
+      </section>
+      <footer><span class="footer-hint"><span class="keycap">Ctrl</span> <span class="keycap">Shift</span> <span class="keycap">Space</span><span id="shortcut-label">展开 / 收起</span></span><div><button id="hide" class="icon-button" aria-label="隐藏到托盘" title="隐藏到托盘"></button><button id="quit" class="icon-button" aria-label="退出" title="退出 AI Island"></button></div></footer>
+    </section>
+  </main>
+  <div id="toast" role="status" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

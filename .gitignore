@@ -1,0 +1,28 @@
+node_modules/
+release/
+artifacts/
+*.log
+.smoke-data/
+
+# Local configuration, credentials and runtime data
+.env
+.env.*
+!.env.example
+.agents/
+.codex/
+settings.json
+history.json
+diagnostics.json
+*-key.bin
+*.island-backup-*
+*.sqlite*
+*.vscdb*
+*.jsonl
+*.pending
+*.tmp
+
+# Local troubleshooting helpers; excluded from the public source distribution
+scripts/diagnose-cursor.cjs
+scripts/inspect-cursor-*.cjs
+scripts/live-check.cjs
+scripts/update-installed.cjs
